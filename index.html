@@ -18,6 +18,7 @@ h1{font-size:24px;font-weight:bold;margin-bottom:16px}
 .btn-primary{background:#2563eb;color:#fff}
 .input-section{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px;text-align:center;color:#fff;border-radius:12px}
 .input-section h2{font-size:24px;margin-bottom:20px}
+.input-section input{padding:12px;font-size:20px;border-radius:8px;border:none;width:200px;text-align:center}
 #msg{margin-top:16px;padding:12px;border-radius:8px;font-size:16px;font-weight:bold;display:none}
 #msg.success{background:#10b981}
 #msg.error{background:#ef4444}
@@ -35,7 +36,6 @@ td{padding:12px;border-bottom:1px solid #e5e7eb}
 .badge.present{background:#dcfce7;color:#166534}
 .badge.late{background:#fed7aa;color:#9a3412}
 .badge.absent{background:#fee2e2;color:#991b1b}
-.badge.excused{background:#f3f4f6;color:#374151}
 .badge.none{background:#f9fafb;color:#9ca3af}
 .teacher-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:#2563eb;color:#fff;border:none;font-size:24px}
 .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
@@ -67,7 +67,10 @@ td{padding:12px;border-bottom:1px solid #e5e7eb}
 </div>
 
 <div class="card input-section">
-<h2>QR로 출석하세요</h2>
+<h2>학번을 입력하세요</h2>
+<input id="sid" placeholder="학번" onkeydown="if(event.key==='Enter')check()">
+<br><br>
+<button class="btn btn-primary" onclick="check()">출석</button>
 <div id="msg"></div>
 </div>
 
@@ -81,7 +84,9 @@ td{padding:12px;border-bottom:1px solid #e5e7eb}
 <div class="card">
 <h1>출석 현황</h1>
 <table>
-<thead><tr><th>학번</th><th>이름</th><th style="text-align:center">상태</th><th style="text-align:center">불참</th></tr></thead>
+<thead>
+<tr><th>학번</th><th>이름</th><th style="text-align:center">상태</th><th style="text-align:center">불참</th></tr>
+</thead>
 <tbody id="table"></tbody>
 </table>
 </div>
@@ -115,33 +120,29 @@ async function sha256(t){
 }
 
 async function verify(){
- const p=document.getElementById('pass').value;
- if(await sha256(p)===PW_HASH){
-   closeModal();
-   alert('로그인 성공');
+ if(await sha256(document.getElementById('pass').value)===PW_HASH){
+   closeModal(); alert('로그인 성공');
  } else alert('비밀번호 오류');
 }
 
 function openModal(){document.getElementById('modal').classList.add('show')}
 function closeModal(){document.getElementById('modal').classList.remove('show')}
 
-/* ===== QR 처리 ===== */
-window.qrInput=function(txt){
- const [id,d,t]=txt.split('|');
- if(d!==s.date||t!==s.time) return msg('날짜/시간 불일치','error');
+function check(){
+ const id=document.getElementById('sid').value.trim();
+ if(!id) return;
  const st=[...g1,...g2].find(x=>x.학번===id);
  if(!st) return msg('존재하지 않는 학번','error');
  if(st.불참!=='-') return msg(`${st.이름} 불참 예정`,'warning');
  s.att[`${s.date}-${s.time}-${id}`]='present';
+ document.getElementById('sid').value='';
  render();
  msg(`${st.이름} 출석`,'success');
 }
 
 function msg(t,c){
  const m=document.getElementById('msg');
- m.textContent=t;
- m.className=c;
- m.style.display='block';
+ m.textContent=t; m.className=c; m.style.display='block';
  setTimeout(()=>m.style.display='none',2000);
 }
 
@@ -149,22 +150,20 @@ function setGrade(g,e){s.grade=g;document.querySelectorAll('.btn-sec').forEach(b
 function setTime(t,e){s.time=t;document.querySelectorAll('.btn-sec').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');render()}
 function update(){s.date=document.getElementById('date').value;render()}
 function getData(){if(s.grade==='1')return g1;if(s.grade==='2')return g2;return [...g1,...g2]}
+
 function render(){
- const tb=document.getElementById('table');
- tb.innerHTML='';
- let p=0,l=0,a=0;
+ const tb=document.getElementById('table'); tb.innerHTML='';
+ let p=0;
  getData().forEach(st=>{
   const k=`${s.date}-${s.time}-${st.학번}`;
   const status=s.att[k]||'none';
   if(status==='present')p++;
-  const tr=document.createElement('tr');
-  tr.innerHTML=`<td>${st.학번}</td><td>${st.이름}</td><td style="text-align:center"><span class="badge ${status}">${status}</span></td><td style="text-align:center">${st.불참}</td>`;
-  tb.appendChild(tr);
+  tb.innerHTML+=`<tr><td>${st.학번}</td><td>${st.이름}</td><td style="text-align:center"><span class="badge ${status}">${status}</span></td><td style="text-align:center">${st.불참}</td></tr>`;
  });
  document.getElementById('total').textContent=getData().length;
  document.getElementById('present').textContent=p;
- document.getElementById('late').textContent=l;
- document.getElementById('absent').textContent=a;
+ document.getElementById('late').textContent=0;
+ document.getElementById('absent').textContent=0;
 }
 update();
 </script>

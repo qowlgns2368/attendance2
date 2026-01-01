@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>겨울방학 자율학습 출석</title>
+
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#f3f4f6;padding:20px}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+h1{margin-bottom:12px}
+
+/* ===== 탭 ===== */
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab{
+  padding:8px 16px;
+  background:#e5e7eb;
+  border-radius:8px 8px 0 0;
+  cursor:pointer;
+  font-weight:600;
+}
+.tab.active{background:#fff;border-bottom:2px solid #fff}
+
+/* ===== 자리표 ===== */
+.seat-grid{border:2px solid #e5e7eb;padding:16px;border-radius:0 12px 12px 12px}
+.seat-row{display:flex;gap:12px;margin-bottom:12px}
+.seat{
+  width:90px;height:55px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:10px;
+  font-weight:bold;
+}
+.seat.present{background:#dcfce7}
+.seat.late{background:#fed7aa}
+.seat.absent{background:#fee2e2}
+.seat.excused{background:#e5e7eb}
+.seat.none{background:#f9fafb}
+
+/* ===== 입력 ===== */
+.input-box{
+  font-size:28px;
+  padding:12px;
+  width:100%;
+  max-width:300px;
+  text-align:center;
+  border-radius:10px;
+  border:2px solid #d1d5db;
+}
+
+/* ===== 메시지 ===== */
+#msg{margin-top:10px;padding:10px;border-radius:8px;font-weight:600;display:none}
+.success{background:#10b981;color:white}
+.warning{background:#f59e0b;color:white}
+.error{background:#ef4444;color:white}
+
+/* ===== 모달 ===== */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5)}
+.modal.show{display:flex;align-items:center;justify-content:center}
+.modal-box{background:#fff;padding:24px;border-radius:12px;width:320px}
+button{cursor:pointer}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>겨울방학 자율학습 출석</h1>
+  <input type="date" id="date">
+  <span id="timeTxt"></span>
+</div>
+
+<div class="card">
+  <div class="tabs" id="tabs"></div>
+  <div class="seat-grid" id="seatGrid"></div>
+</div>
+
+<div class="card" style="text-align:center">
+  <h2>학번 입력</h2>
+  <input id="input" class="input-box" maxlength="5" placeholder="10102">
+  <div id="msg"></div>
+</div>
+
+<button onclick="openModal()">⚙️</button>
+
+<!-- ===== 교사 모달 ===== -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3>교사 인증</h3>
+    <input type="password" id="pass" placeholder="비밀번호">
+    <button onclick="verify()">확인</button>
+
+    <div id="options" style="display:none;margin-top:12px">
+      <hr>
+      <input type="password" id="newPass" placeholder="새 비밀번호">
+      <input type="password" id="confPass" placeholder="확인">
+      <button onclick="changePass()">비번 변경</button>
+      <hr>
+      <button onclick="resetAll()">전체 초기화</button>
+      <button onclick="closeModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 학생 ===== */
+const students = [
+  {id:'10102',name:'김도윤'},
+  {id:'10103',name:'김도훈'},
+  {id:'10106',name:'김재현'},
+  {id:'10223',name:'이서준'},
+  {id:'10306',name:'이승준'}
+];
+
+/* ===== 자리표 (엑셀 구조 반영) ===== */
+const seats = {
+  '월': [['10102','10103'],['10106','10223']],
+  '화': [['10306']],
+  '수': [['10102','10106']],
+  '목': [['10103','10223']],
+  '금': [['10306']]
+};
+
+const s = {
+  day:'월',
+  date:new Date().toISOString().split('T')[0],
+  att:{},
+  pwHash: localStorage.getItem('pwHash') ||
+    '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4' // 1234
+};
+
+/* ===== 해시 ===== */
+async function sha256(t){
+  const b=new TextEncoder().encode(t);
+  const h=await crypto.subtle.digest('SHA-256',b);
+  return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+/* ===== UI ===== */
+function init(){
+  date.value=s.date;
+  renderTabs();
+  renderSeats();
+  setInterval(()=>timeTxt.textContent=new Date().toLocaleTimeString('ko-KR',{hour12:false}),1000);
+
+  input.addEventListener('keypress',e=>{if(e.key==='Enter')process();});
+}
+function renderTabs(){
+  tabs.innerHTML='';
+  Object.keys(seats).forEach(d=>{
+    const b=document.createElement('div');
+    b.className='tab'+(d===s.day?' active':'');
+    b.textContent=d;
+    b.onclick=()=>{s.day=d;renderTabs();renderSeats();}
+    tabs.appendChild(b);
+  });
+}
+function renderSeats(){
+  seatGrid.innerHTML='';
+  seats[s.day].forEach(r=>{
+    const row=document.createElement('div');
+    row.className='seat-row';
+    r.forEach(id=>{
+      const st=getStatus(id);
+      const d=document.createElement('div');
+      d.className='seat '+st;
+      d.textContent=id;
+      row.appendChild(d);
+    });
+    seatGrid.appendChild(row);
+  });
+}
+
+/* ===== 출석 ===== */
+function getStatus(id){
+  return s.att[`${s.date}-${s.day}-${id}`]||'none';
+}
+function process(){
+  const id=input.value.trim();
+  const st=students.find(x=>x.id===id);
+  if(!st){show('없는 학번','error');input.value='';return;}
+
+  const k=`${s.date}-${s.day}-${id}`;
+  s.att[k]='present';
+  show(`${st.name} 출석`,'success');
+  input.value='';
+  renderSeats();
+}
+
+/* ===== 메시지 ===== */
+function show(t,c){
+  msg.textContent=t;
+  msg.className=c;
+  msg.style.display='block';
+  setTimeout(()=>msg.style.display='none',1500);
+}
+
+/* ===== 교사 ===== */
+function openModal(){modal.classList.add('show');}
+function closeModal(){modal.classList.remove('show');}
+async function verify(){
+  const h=await sha256(pass.value);
+  if(h===s.pwHash) options.style.display='block';
+  else alert('비번 오류');
+}
+async function changePass(){
+  if(newPass.value!==confPass.value) return alert('불일치');
+  s.pwHash=await sha256(newPass.value);
+  localStorage.setItem('pwHash',s.pwHash);
+  alert('변경됨');
+}
+function resetAll(){
+  if(confirm('초기화?')){
+    s.att={};
+    renderSeats();
+  }
+}
+
+init();
+</script>
+</body>
+</html>

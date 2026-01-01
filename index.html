@@ -1,222 +1,172 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>겨울방학 자율학습 출석</title>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>출석체크</title>
 <style>
-*{box-sizing:border-box}
-body{font-family:-apple-system,sans-serif;background:#f3f4f6;padding:20px}
-.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
-h1{margin-bottom:12px}
-
-/* ===== 탭 ===== */
-.tabs{display:flex;gap:4px;margin-bottom:12px}
-.tab{
-  padding:8px 16px;
-  background:#e5e7eb;
-  border-radius:8px 8px 0 0;
-  cursor:pointer;
-  font-weight:600;
-}
-.tab.active{background:#fff;border-bottom:2px solid #fff}
-
-/* ===== 자리표 ===== */
-.seat-grid{border:2px solid #e5e7eb;padding:16px;border-radius:0 12px 12px 12px}
-.seat-row{display:flex;gap:12px;margin-bottom:12px}
-.seat{
-  width:90px;height:55px;
-  display:flex;align-items:center;justify-content:center;
-  border-radius:10px;
-  font-weight:bold;
-}
-.seat.present{background:#dcfce7}
-.seat.late{background:#fed7aa}
-.seat.absent{background:#fee2e2}
-.seat.excused{background:#e5e7eb}
-.seat.none{background:#f9fafb}
-
-/* ===== 입력 ===== */
-.input-box{
-  font-size:28px;
-  padding:12px;
-  width:100%;
-  max-width:300px;
-  text-align:center;
-  border-radius:10px;
-  border:2px solid #d1d5db;
-}
-
-/* ===== 메시지 ===== */
-#msg{margin-top:10px;padding:10px;border-radius:8px;font-weight:600;display:none}
-.success{background:#10b981;color:white}
-.warning{background:#f59e0b;color:white}
-.error{background:#ef4444;color:white}
-
-/* ===== 모달 ===== */
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5)}
+/* ===== 기존 스타일 그대로 ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#f9fafb;padding:20px}
+.container{max-width:1200px;margin:0 auto}
+.card{background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1);padding:24px;margin-bottom:24px}
+h1{font-size:24px;font-weight:bold;margin-bottom:16px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:500}
+.btn-sec{background:#e5e7eb;color:#374151}
+.btn-sec.active{background:#2563eb;color:#fff}
+.btn-primary{background:#2563eb;color:#fff}
+.input-section{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px;text-align:center;color:#fff;border-radius:12px}
+.input-section h2{font-size:24px;margin-bottom:20px}
+#msg{margin-top:16px;padding:12px;border-radius:8px;font-size:16px;font-weight:bold;display:none}
+#msg.success{background:#10b981}
+#msg.error{background:#ef4444}
+#msg.warning{background:#f59e0b}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat{background:#f9fafb;border:2px solid #e5e7eb;padding:20px;text-align:center;border-radius:8px}
+.stat-num{font-size:36px;font-weight:bold}
+.stat.present .stat-num{color:#16a34a}
+.stat.late .stat-num{color:#f97316}
+.stat.absent .stat-num{color:#dc2626}
+table{width:100%;border-collapse:collapse}
+th{background:#f3f4f6;padding:12px;border-bottom:2px solid #d1d5db}
+td{padding:12px;border-bottom:1px solid #e5e7eb}
+.badge{padding:6px 16px;border-radius:20px;font-weight:600;font-size:13px}
+.badge.present{background:#dcfce7;color:#166534}
+.badge.late{background:#fed7aa;color:#9a3412}
+.badge.absent{background:#fee2e2;color:#991b1b}
+.badge.excused{background:#f3f4f6;color:#374151}
+.badge.none{background:#f9fafb;color:#9ca3af}
+.teacher-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:#2563eb;color:#fff;border:none;font-size:24px}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
 .modal.show{display:flex;align-items:center;justify-content:center}
-.modal-box{background:#fff;padding:24px;border-radius:12px;width:320px}
-button{cursor:pointer}
+.modal-content{background:#fff;padding:32px;border-radius:12px;max-width:500px;width:90%}
 </style>
 </head>
 
 <body>
+<div class="container">
 
 <div class="card">
-  <h1>겨울방학 자율학습 출석</h1>
-  <input type="date" id="date">
-  <span id="timeTxt"></span>
+<h1>겨울방학 자율학습</h1>
+
+<div class="controls">
+<div>
+<button class="btn btn-sec active" onclick="setGrade('all',event)">전체</button>
+<button class="btn btn-sec" onclick="setGrade('1',event)">1학년</button>
+<button class="btn btn-sec" onclick="setGrade('2',event)">2학년</button>
+</div>
+<div>
+<button class="btn btn-sec active" onclick="setTime('오전',event)">오전</button>
+<button class="btn btn-sec" onclick="setTime('오후',event)">오후</button>
+</div>
+</div>
+
+<input type="date" id="date" onchange="update()">
+<div id="dateDisplay"></div>
+</div>
+
+<div class="card input-section">
+<h2>QR로 출석하세요</h2>
+<div id="msg"></div>
+</div>
+
+<div class="stats">
+<div class="stat total"><div class="stat-num" id="total">0</div>전체</div>
+<div class="stat present"><div class="stat-num" id="present">0</div>출석</div>
+<div class="stat late"><div class="stat-num" id="late">0</div>지각</div>
+<div class="stat absent"><div class="stat-num" id="absent">0</div>결석</div>
 </div>
 
 <div class="card">
-  <div class="tabs" id="tabs"></div>
-  <div class="seat-grid" id="seatGrid"></div>
+<h1>출석 현황</h1>
+<table>
+<thead><tr><th>학번</th><th>이름</th><th style="text-align:center">상태</th><th style="text-align:center">불참</th></tr></thead>
+<tbody id="table"></tbody>
+</table>
 </div>
 
-<div class="card" style="text-align:center">
-  <h2>학번 입력</h2>
-  <input id="input" class="input-box" maxlength="5" placeholder="10102">
-  <div id="msg"></div>
 </div>
 
-<button onclick="openModal()">⚙️</button>
+<button class="teacher-btn" onclick="openModal()">⚙️</button>
 
-<!-- ===== 교사 모달 ===== -->
-<div class="modal" id="modal">
-  <div class="modal-box">
-    <h3>교사 인증</h3>
-    <input type="password" id="pass" placeholder="비밀번호">
-    <button onclick="verify()">확인</button>
-
-    <div id="options" style="display:none;margin-top:12px">
-      <hr>
-      <input type="password" id="newPass" placeholder="새 비밀번호">
-      <input type="password" id="confPass" placeholder="확인">
-      <button onclick="changePass()">비번 변경</button>
-      <hr>
-      <button onclick="resetAll()">전체 초기화</button>
-      <button onclick="closeModal()">닫기</button>
-    </div>
-  </div>
+<div id="modal" class="modal">
+<div class="modal-content">
+<h1>교사 로그인</h1>
+<input type="password" id="pass">
+<button class="btn btn-primary" onclick="verify()">확인</button>
+</div>
 </div>
 
 <script>
-/* ===== 학생 ===== */
-const students = [
-  {id:'10102',name:'김도윤'},
-  {id:'10103',name:'김도훈'},
-  {id:'10106',name:'김재현'},
-  {id:'10223',name:'이서준'},
-  {id:'10306',name:'이승준'}
-];
+/* ===== 학생 명단 그대로 ===== */
+const g1 = [ { 학번:'10102',이름:'김도윤',불참:'-' },{ 학번:'10103',이름:'김도훈',불참:'-' },{ 학번:'10106',이름:'김재현',불참:'-' },{ 학번:'10115',이름:'이건상',불참:'-' },{ 학번:'10116',이름:'이기혁',불참:'-' },{ 학번:'10117',이름:'이서준',불참:'-' },{ 학번:'10119',이름:'이윤찬',불참:'-' },{ 학번:'10123',이름:'김보성',불참:'-' },{ 학번:'10223',이름:'이서준',불참:'-' },{ 학번:'10306',이름:'이승준',불참:'-' },{ 학번:'10320',이름:'조현석',불참:'-' },{ 학번:'10505',이름:'권가연',불참:'수 오전/오후' },{ 학번:'10508',이름:'김윤채',불참:'금 오전' },{ 학번:'10513',이름:'박지후',불참:'금 오후' },{ 학번:'10516',이름:'이지우',불참:'-' },{ 학번:'10601',이름:'김세연',불참:'-' },{ 학번:'10608',이름:'유지원',불참:'-' },{ 학번:'10609',이름:'이나운',불참:'-' },{ 학번:'10611',이름:'이루리',불참:'목 오후' },{ 학번:'10612',이름:'이소윤',불참:'-' },{ 학번:'10613',이름:'이영인',불참:'-' },{ 학번:'10618',이름:'정희란',불참:'-' },{ 학번:'10619',이름:'최진경',불참:'-' },{ 학번:'10805',이름:'김보미',불참:'화 오후' },{ 학번:'10815',이름:'유제니',불참:'-' },{ 학번:'10901',이름:'김민서',불참:'금 오전' },{ 학번:'10903',이름:'김시현',불참:'금 오전/오후' },{ 학번:'10904',이름:'김하람',불참:'금 오전' },{ 학번:'10905',이름:'서하은',불참:'-' },{ 학번:'10907',이름:'유민정',불참:'금 오전' },{ 학번:'10910',이름:'이나윤',불참:'금 오전' } ];
+const g2 = [ { 학번:'20101',이름:'김동하',불참:'-' },{ 학번:'20113',이름:'이재경',불참:'-' },{ 학번:'20215',이름:'정민규',불참:'-' },{ 학번:'20301',이름:'김선우',불참:'-' },{ 학번:'20307',이름:'박이엘',불참:'-' },{ 학번:'20313',이름:'윤여명',불참:'-' },{ 학번:'20418',이름:'윤주성',불참:'-' },{ 학번:'20714',이름:'이유온',불참:'-' },{ 학번:'20801',이름:'강다연',불참:'-' },{ 학번:'20802',이름:'강서유',불참:'-' },{ 학번:'20807',이름:'김민서',불참:'-' },{ 학번:'20810',이름:'서준영',불참:'-' },{ 학번:'20811',이름:'서지민',불참:'-' },{ 학번:'20815',이름:'이서윤',불참:'-' },{ 학번:'21005',이름:'김채영',불참:'-' },{ 학번:'21010',이름:'백소은',불참:'-' },{ 학번:'21020',이름:'이예담',불참:'-' },{ 학번:'21022',이름:'정채린',불참:'-' } ];
 
-/* ===== 자리표 (엑셀 구조 반영) ===== */
-const seats = {
-  '월': [['10102','10103'],['10106','10223']],
-  '화': [['10306']],
-  '수': [['10102','10106']],
-  '목': [['10103','10223']],
-  '금': [['10306']]
-};
+let s={grade:'all',time:'오전',date:new Date().toISOString().split('T')[0],att:{}};
 
-const s = {
-  day:'월',
-  date:new Date().toISOString().split('T')[0],
-  att:{},
-  pwHash: localStorage.getItem('pwHash') ||
-    '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4' // 1234
-};
+/* ===== 비밀번호 해시 ===== */
+const PW_HASH="240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
 
-/* ===== 해시 ===== */
 async function sha256(t){
-  const b=new TextEncoder().encode(t);
-  const h=await crypto.subtle.digest('SHA-256',b);
-  return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('');
+ const b=new TextEncoder().encode(t);
+ const h=await crypto.subtle.digest("SHA-256",b);
+ return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
 
-/* ===== UI ===== */
-function init(){
-  date.value=s.date;
-  renderTabs();
-  renderSeats();
-  setInterval(()=>timeTxt.textContent=new Date().toLocaleTimeString('ko-KR',{hour12:false}),1000);
-
-  input.addEventListener('keypress',e=>{if(e.key==='Enter')process();});
-}
-function renderTabs(){
-  tabs.innerHTML='';
-  Object.keys(seats).forEach(d=>{
-    const b=document.createElement('div');
-    b.className='tab'+(d===s.day?' active':'');
-    b.textContent=d;
-    b.onclick=()=>{s.day=d;renderTabs();renderSeats();}
-    tabs.appendChild(b);
-  });
-}
-function renderSeats(){
-  seatGrid.innerHTML='';
-  seats[s.day].forEach(r=>{
-    const row=document.createElement('div');
-    row.className='seat-row';
-    r.forEach(id=>{
-      const st=getStatus(id);
-      const d=document.createElement('div');
-      d.className='seat '+st;
-      d.textContent=id;
-      row.appendChild(d);
-    });
-    seatGrid.appendChild(row);
-  });
-}
-
-/* ===== 출석 ===== */
-function getStatus(id){
-  return s.att[`${s.date}-${s.day}-${id}`]||'none';
-}
-function process(){
-  const id=input.value.trim();
-  const st=students.find(x=>x.id===id);
-  if(!st){show('없는 학번','error');input.value='';return;}
-
-  const k=`${s.date}-${s.day}-${id}`;
-  s.att[k]='present';
-  show(`${st.name} 출석`,'success');
-  input.value='';
-  renderSeats();
-}
-
-/* ===== 메시지 ===== */
-function show(t,c){
-  msg.textContent=t;
-  msg.className=c;
-  msg.style.display='block';
-  setTimeout(()=>msg.style.display='none',1500);
-}
-
-/* ===== 교사 ===== */
-function openModal(){modal.classList.add('show');}
-function closeModal(){modal.classList.remove('show');}
 async function verify(){
-  const h=await sha256(pass.value);
-  if(h===s.pwHash) options.style.display='block';
-  else alert('비번 오류');
-}
-async function changePass(){
-  if(newPass.value!==confPass.value) return alert('불일치');
-  s.pwHash=await sha256(newPass.value);
-  localStorage.setItem('pwHash',s.pwHash);
-  alert('변경됨');
-}
-function resetAll(){
-  if(confirm('초기화?')){
-    s.att={};
-    renderSeats();
-  }
+ const p=document.getElementById('pass').value;
+ if(await sha256(p)===PW_HASH){
+   closeModal();
+   alert('로그인 성공');
+ } else alert('비밀번호 오류');
 }
 
-init();
+function openModal(){document.getElementById('modal').classList.add('show')}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+
+/* ===== QR 처리 ===== */
+window.qrInput=function(txt){
+ const [id,d,t]=txt.split('|');
+ if(d!==s.date||t!==s.time) return msg('날짜/시간 불일치','error');
+ const st=[...g1,...g2].find(x=>x.학번===id);
+ if(!st) return msg('존재하지 않는 학번','error');
+ if(st.불참!=='-') return msg(`${st.이름} 불참 예정`,'warning');
+ s.att[`${s.date}-${s.time}-${id}`]='present';
+ render();
+ msg(`${st.이름} 출석`,'success');
+}
+
+function msg(t,c){
+ const m=document.getElementById('msg');
+ m.textContent=t;
+ m.className=c;
+ m.style.display='block';
+ setTimeout(()=>m.style.display='none',2000);
+}
+
+function setGrade(g,e){s.grade=g;document.querySelectorAll('.btn-sec').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');render()}
+function setTime(t,e){s.time=t;document.querySelectorAll('.btn-sec').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');render()}
+function update(){s.date=document.getElementById('date').value;render()}
+function getData(){if(s.grade==='1')return g1;if(s.grade==='2')return g2;return [...g1,...g2]}
+function render(){
+ const tb=document.getElementById('table');
+ tb.innerHTML='';
+ let p=0,l=0,a=0;
+ getData().forEach(st=>{
+  const k=`${s.date}-${s.time}-${st.학번}`;
+  const status=s.att[k]||'none';
+  if(status==='present')p++;
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${st.학번}</td><td>${st.이름}</td><td style="text-align:center"><span class="badge ${status}">${status}</span></td><td style="text-align:center">${st.불참}</td>`;
+  tb.appendChild(tr);
+ });
+ document.getElementById('total').textContent=getData().length;
+ document.getElementById('present').textContent=p;
+ document.getElementById('late').textContent=l;
+ document.getElementById('absent').textContent=a;
+}
+update();
 </script>
 </body>
 </html>

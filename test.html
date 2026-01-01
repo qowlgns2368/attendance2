@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>자리표 관리</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#f9fafb;padding:20px}
+.container{max-width:1200px;margin:0 auto}
+
+.card{background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1);padding:20px;margin-bottom:20px}
+
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tab{padding:8px 16px;border-radius:6px;background:#e5e7eb;cursor:pointer;font-weight:500}
+.tab.active{background:#2563eb;color:#fff}
+
+#teacherBar{
+  display:none;
+  position:sticky;
+  top:0;
+  z-index:100;
+  background:#f8fafc;
+  border-bottom:1px solid #e5e7eb;
+  padding:10px;
+  margin-bottom:16px;
+  display:flex;
+  gap:8px;
+  align-items:center
+}
+#teacherBar span{font-weight:bold;margin-right:8px}
+#teacherBar button{
+  padding:6px 10px;
+  border-radius:6px;
+  border:1px solid #d1d5db;
+  background:white;
+  cursor:pointer
+}
+#teacherBar button:hover{background:#e5e7eb}
+
+.seat-grid{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:12px
+}
+
+.seat{
+  background:#f3f4f6;
+  border-radius:8px;
+  padding:16px;
+  text-align:center;
+  font-weight:600;
+  cursor:default;
+  user-select:none
+}
+.seat.empty{color:#9ca3af}
+.seat.edit{cursor:move}
+.seat.edit:hover{outline:2px dashed #9ca3af}
+
+.teacher-btn{
+  position:fixed;
+  bottom:24px;
+  right:24px;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:#2563eb;
+  color:white;
+  border:none;
+  font-size:24px;
+  cursor:pointer
+}
+
+.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  align-items:center;
+  justify-content:center
+}
+.modal.show{display:flex}
+.modal-content{
+  background:white;
+  padding:24px;
+  border-radius:12px;
+  width:300px
+}
+.modal-content h3{margin-bottom:12px}
+.modal-content input{
+  width:100%;
+  padding:8px;
+  margin-bottom:12px
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div id="teacherBar">
+  <span>👩‍🏫 교사모드</span>
+  <button onclick="toggleEdit()">✏️ 편집</button>
+  <button onclick="undo()">↩ 실행취소</button>
+  <button onclick="addStudent()">➕ 추가</button>
+  <button onclick="deleteStudent()">➖ 삭제</button>
+</div>
+
+<div class="card">
+  <div class="tabs" id="tabs"></div>
+  <div class="seat-grid" id="seatGrid"></div>
+</div>
+
+</div>
+
+<button class="teacher-btn" onclick="openModal()">⚙️</button>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h3>교사 로그인</h3>
+    <input type="password" id="pw">
+    <button onclick="login()">확인</button>
+  </div>
+</div>
+
+<script>
+/* ===== 기본 데이터 ===== */
+const DEFAULT_DATA = {
+  "자리표 A": [
+    ["김도윤","김도훈","김재현","이건상","이기혁","이서준"],
+    ["이윤찬","김보성","이서준","이승준","조현석",""],
+    ["권가연","김윤채","박지후","이지우","",""],
+    ["김세연","유지원","이나운","이루리","이소윤",""]
+  ],
+  "자리표 B": [
+    ["김동하","이재경","정민규","김선우","",""],
+    ["박이엘","윤여명","윤주성","이유온","",""],
+    ["강다연","강서유","김민서","서준영","",""]
+  ]
+};
+
+let SEAT_DATA = JSON.parse(localStorage.getItem("seatData")) || structuredClone(DEFAULT_DATA);
+let currentSheet = Object.keys(SEAT_DATA)[0];
+let editMode = false;
+
+/* ===== 실행취소 ===== */
+const undoStack=[];
+function pushUndo(){
+  undoStack.push(JSON.stringify(SEAT_DATA));
+  if(undoStack.length>30) undoStack.shift();
+}
+function undo(){
+  if(!undoStack.length) return alert("되돌릴 게 없음");
+  SEAT_DATA = JSON.parse(undoStack.pop());
+  save(); render();
+}
+
+/* ===== 저장 ===== */
+function save(){
+  localStorage.setItem("seatData",JSON.stringify(SEAT_DATA));
+}
+
+/* ===== 탭 ===== */
+function renderTabs(){
+  const t=document.getElementById("tabs");
+  t.innerHTML="";
+  Object.keys(SEAT_DATA).forEach(k=>{
+    const d=document.createElement("div");
+    d.className="tab"+(k===currentSheet?" active":"");
+    d.textContent=k;
+    d.onclick=()=>{currentSheet=k;render()};
+    t.appendChild(d);
+  });
+}
+
+/* ===== 자리 ===== */
+let dragSrc=null;
+function render(){
+  renderTabs();
+  const g=document.getElementById("seatGrid");
+  g.innerHTML="";
+  SEAT_DATA[currentSheet].forEach((row,r)=>{
+    row.forEach((name,c)=>{
+      const d=document.createElement("div");
+      d.className="seat"+(editMode?" edit":"")+(name?"":" empty");
+      d.textContent=name||"빈자리";
+      if(editMode){
+        d.draggable=true;
+        d.ondragstart=()=>dragSrc={r,c};
+        d.ondragover=e=>e.preventDefault();
+        d.ondrop=()=>{
+          if(!dragSrc) return;
+          pushUndo();
+          const t=SEAT_DATA[currentSheet][dragSrc.r][dragSrc.c];
+          SEAT_DATA[currentSheet][dragSrc.r][dragSrc.c]=SEAT_DATA[currentSheet][r][c];
+          SEAT_DATA[currentSheet][r][c]=t;
+          dragSrc=null;
+          save(); render();
+        }
+      }
+      g.appendChild(d);
+    });
+  });
+}
+
+/* ===== 교사 ===== */
+const PW_HASH="240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
+async function sha256(t){
+ const b=new TextEncoder().encode(t);
+ const h=await crypto.subtle.digest("SHA-256",b);
+ return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+async function login(){
+ const p=document.getElementById("pw").value;
+ if(await sha256(p)===PW_HASH){
+   document.getElementById("teacherBar").style.display="flex";
+   closeModal();
+ } else alert("비번 틀림");
+}
+function toggleEdit(){editMode=!editMode;render();}
+function addStudent(){
+ const n=prompt("이름");
+ if(!n) return;
+ pushUndo();
+ SEAT_DATA[currentSheet].push([n,"","","","",""]);
+ save(); render();
+}
+function deleteStudent(){
+ const n=prompt("삭제할 이름");
+ if(!n) return;
+ pushUndo();
+ SEAT_DATA[currentSheet]=SEAT_DATA[currentSheet].map(r=>r.map(x=>x===n?"":x));
+ save(); render();
+}
+
+/* ===== 모달 ===== */
+function openModal(){document.getElementById("modal").classList.add("show")}
+function closeModal(){document.getElementById("modal").classList.remove("show")}
+
+/* ===== 시작 ===== */
+render();
+</script>
+</body>
+</html>
